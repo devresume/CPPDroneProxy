@@ -132,12 +132,12 @@ top (int argc, char **argv)
 	serial_port.start();
 	autopilot_interface.start();
 
-    int result;
-    pthread_t exit_tid;
-    bool *found_exit_char = new bool(false);
+//    int result;
+//    pthread_t exit_tid;
+//    bool *found_exit_char = new bool(false);
 
-    result = pthread_create( &exit_tid, NULL, &start_exit_input_thread, found_exit_char );
-    if ( result ) throw result;
+//    result = pthread_create( &exit_tid, NULL, &start_exit_input_thread, found_exit_char );
+//    if ( result ) throw result;
 
 
 	// --------------------------------------------------------------------------
@@ -147,14 +147,15 @@ top (int argc, char **argv)
 	/*
 	 * Now we can implement the algorithm we want on top of the autopilot interface
 	 */
-    commands(autopilot_interface, found_exit_char);
+//    commands(autopilot_interface, found_exit_char);
+    commands(autopilot_interface);
 
 
 	// --------------------------------------------------------------------------
 	//   THREAD and PORT SHUTDOWN
 	// --------------------------------------------------------------------------
 
-    pthread_cancel(exit_tid);
+    //pthread_cancel(exit_tid);
 	/*
 	 * Now that we are done we can stop the threads and close the port
 	 */
@@ -176,8 +177,10 @@ top (int argc, char **argv)
 //   COMMANDS
 // ------------------------------------------------------------------------------
 
+//void
+//commands(Autopilot_Interface &api, bool* found_exit_char)
 void
-commands(Autopilot_Interface &api, bool* found_exit_char)
+commands(Autopilot_Interface &api)
 {
 
 	// --------------------------------------------------------------------------
@@ -224,20 +227,23 @@ commands(Autopilot_Interface &api, bool* found_exit_char)
 	// NOW pixhawk will try to move
 
 	// Wait for 8 seconds, check position
-    int i = 0;
-    while(!(*found_exit_char))
+//    int i = 0;
+    while(1)
 	{
-        if(api.udpclient_status && ((get_time_usec() - api.lastMsg) > api.maxTimeout ))
-        {
-            break;
-        }
+//        if(api.udpclient_status && ((get_time_usec() - api.lastMsg) > api.maxTimeout ))
+//        {
+//            api.enable_rtl_control();
+//        }else if(api.udpclient_status && ((get_time_usec() - api.lastMsg) <= api.maxTimeout ))
+//        {
+//            api.enable_offboard_control();
+//        }
         //mavlink_local_position_ned_t pos = api.current_messages.local_position_ned;
         //printf("%i CURRENT POSITION XYZ = [ % .4f , % .4f , % .4f ] \n", i++, pos.x, pos.y, pos.z);
-        usleep(10000);
+        usleep(100000);
 
 	}
 
-    printf("Exited All\n");
+    cout << "Exited All because api.getTimeToExit() is: " << api.getTimeToExit() << ", and api.isExit is : " << api.isExit << endl;
 
 
 	// --------------------------------------------------------------------------
@@ -246,7 +252,7 @@ commands(Autopilot_Interface &api, bool* found_exit_char)
 
 	api.disable_offboard_control();
 
-    api.rtl_control();
+    api.enable_rtl_control();
 
 	// now pixhawk isn't listening to setpoint commands
 

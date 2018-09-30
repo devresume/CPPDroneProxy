@@ -197,8 +197,11 @@ Autopilot_Interface(Serial_Port *serial_port_)
 	writing_status = 0;      // whether the write thread is running
 	control_status = 0;      // whether the autopilot is in offboard control mode
     udpclient_status = 0;
+    rtl_control_status = 0;
 
-	time_to_exit   = false;  // flag to signal thread exit
+    isExit = false;
+
+    time_to_exit   = false;  // flag to signal thread exit
 
 	read_tid  = 0; // read thread id
 	write_tid = 0; // write thread id
@@ -227,6 +230,11 @@ Autopilot_Interface::
 update_setpoint(mavlink_set_position_target_local_ned_t setpoint)
 {
 	current_setpoint = setpoint;
+}
+
+bool Autopilot_Interface::getTimeToExit()
+{
+    return time_to_exit;
 }
 
 
@@ -420,24 +428,27 @@ rw_udp_messages()
     memset(buf, '\0', BUFLEN);
 
     //try to receive some data, this is a blocking call
-    while((!time_to_exit) && ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1))
+    while((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
     {
-        printf("recvfrom() failed with error code ");
+        //printf("recvfrom() failed with error code ");
         //exit(EXIT_FAILURE);
-        return;
+        //return;
     }
-
-    udpclient_status = true;
+    if(recv_len > 0)
+    {
+        udpclient_status = true;
+        lastMsg = get_time_usec();
+    }
 
     input_cmd = stoi(string(buf));
 
-    mavlink_set_position_target_local_ned_t sp;
+    //mavlink_set_position_target_local_ned_t sp;
 
     x = 0.0;
     y = 0.0;
     z = 0.0;
     yaw = 0.0;
-    setControls(input_cmd, x, y, z, yaw);
+    setControls(input_cmd, x, y, z, yaw, isExit);
     // autopilot_interface.h provides some helper functions to build the command
 
 
@@ -461,7 +472,7 @@ rw_udp_messages()
     // SEND THE COMMAND
     update_setpoint(sp);
 
-    ss << x << " " << y << " " << z << " " << yaw;
+    //ss << x << " " << y << " " << z << " " << yaw;
 
     //print details of the client/peer and the data received
     char ipbuf[INET_ADDRSTRLEN];
@@ -469,14 +480,14 @@ rw_udp_messages()
     printf("Data: %s\n", buf);
 
     //now reply the client with the same data
-    if (sendto(s, ss.str().c_str(), ss.str().size(), 0, (struct sockaddr*) &si_other, slen) == -1)
+//    if (sendto(s, ss.str().c_str(), ss.str().size(), 0, (struct sockaddr*) &si_other, slen) == -1)
+    if (sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1)
     {
-        //printf("sendto() failed with error code : %d", WSAGetLastError());
-        //exit(EXIT_FAILURE);
-        return;
+        printf("sendto() failed with error code \n");
+        exit(EXIT_FAILURE);
+        //return;
     }
 
-    lastMsg = get_time_usec();
 
     ss.str("");
     ss.clear();
@@ -548,7 +559,10 @@ enable_offboard_control()
 
 		// Check the command was written
 		if ( success )
+        {
 			control_status = true;
+            rtl_control_status = false;
+        }
 		else
 		{
 			fprintf(stderr,"Error: off-board mode not set, could not write message\n");
@@ -558,6 +572,40 @@ enable_offboard_control()
 		printf("\n");
 
 	} // end: if not offboard_status
+
+}
+
+void
+Autopilot_Interface::
+enable_rtl_control()
+{
+    // Should only send this command once
+    if ( rtl_control_status == false )
+    {
+        printf("ENABLE OFFBOARD MODE\n");
+
+        // ----------------------------------------------------------------------
+        //   TOGGLE OFF-BOARD MODE
+        // ----------------------------------------------------------------------
+
+        // Sends the command to go off-board
+        int success = toggle_rtl_control( true );
+
+        // Check the command was written
+        if ( success )
+        {
+            rtl_control_status = true;
+            control_status = false;
+        }
+        else
+        {
+            fprintf(stderr,"Error: off-board mode not set, could not write message\n");
+            //throw EXIT_FAILURE;
+        }
+
+        printf("\n");
+
+    } // end: if not offboard_status
 
 }
 
@@ -623,7 +671,7 @@ takeoff_control()
 
 int
 Autopilot_Interface::
-rtl_control()
+toggle_rtl_control(bool flag)
 {
     // Prepare command for off-board mode
     mavlink_command_long_t com = { 0 };
@@ -631,7 +679,7 @@ rtl_control()
     com.target_component = autopilot_id;
     com.command          = MAV_CMD_NAV_RETURN_TO_LAUNCH;
     com.confirmation     = true;
-    com.param1           = true; // flag >0.5 => start, <0.5 => stop
+    com.param1           = flag; // flag >0.5 => start, <0.5 => stop
 
     // Encode
     mavlink_message_t message;
@@ -963,7 +1011,7 @@ udpclient_thread()
     if(setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
     {
         printf("Set socket options error \n");
-        return;
+        //return;
     }
 
 
@@ -983,7 +1031,7 @@ udpclient_thread()
 
     slen = sizeof si_other;
     //keep listening for data
-    while ( ! time_to_exit )
+    while ( 1 )
     {
         //printf("Waiting for data...");
         //fflush(stdout);

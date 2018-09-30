@@ -268,6 +268,7 @@ public:
 	char writing_status;
 	char control_status;
     char udpclient_status;
+    char rtl_control_status;
     uint64_t write_count;
 
     //UDP Client
@@ -282,6 +283,8 @@ public:
     uint64_t lastMsg;
     int maxTimeout;
     struct timeval tv;
+    bool isExit;
+    mavlink_set_position_target_local_ned_t sp;
 
     int system_id;
 	int autopilot_id;
@@ -300,8 +303,10 @@ public:
 	void enable_offboard_control();
 	void disable_offboard_control();
 
+    void enable_rtl_control();
+
     //added for auto take-off and land
-    int rtl_control();
+
     int takeoff_control();
 
 	void start();
@@ -313,7 +318,7 @@ public:
 
 	void handle_quit( int sig );
 
-
+    bool getTimeToExit();
 private:
 
 	Serial_Port *serial_port;
@@ -331,6 +336,7 @@ private:
 	void write_thread(void);
 
     int toggle_offboard_control( bool flag );
+    int toggle_rtl_control(bool flag);
 
 	void write_setpoint();
 

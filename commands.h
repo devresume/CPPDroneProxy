@@ -12,6 +12,7 @@ enum controls : int
 	YRIGHT = 32,
 	TUP = 64,
 	TDOWN = 128,
+    EXIT = 256,
 };
 
 inline bool isCmdSet(int cmd, int ctrl)
@@ -23,10 +24,10 @@ inline bool isCmdSet(int cmd, int ctrl)
     return false;
 }
 
-inline void setControls(int cmd, float& x, float& y, float& z, float& yaw)
+inline void setControls(int cmd, float& x, float& y, float& z, float& yaw, bool& isExit)
 {
-    const int len = 8;
-    int commands[len] = {PFORWARD, PBACK, RLEFT, RRIGHT, YLEFT, YRIGHT, TUP, TDOWN};
+    const int len = 9;
+    const int commands[len] = {PFORWARD, PBACK, RLEFT, RRIGHT, YLEFT, YRIGHT, TUP, TDOWN, EXIT};
     for(int i = 0; i < len; ++i)
     {
         if(!isCmdSet(cmd, commands[i]))
@@ -59,6 +60,10 @@ inline void setControls(int cmd, float& x, float& y, float& z, float& yaw)
             case YRIGHT:
                 yaw += M_PI / 10;
             break;
+            case EXIT:
+                isExit = true;
+            break;
+
         }
     }
 
