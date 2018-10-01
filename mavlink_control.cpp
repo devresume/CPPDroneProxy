@@ -228,15 +228,15 @@ commands(Autopilot_Interface &api)
 
 	// Wait for 8 seconds, check position
 //    int i = 0;
-    while(1)
+    while(!api.getTimeToExit())
 	{
-//        if(api.udpclient_status && ((get_time_usec() - api.lastMsg) > api.maxTimeout ))
-//        {
-//            api.enable_rtl_control();
-//        }else if(api.udpclient_status && ((get_time_usec() - api.lastMsg) <= api.maxTimeout ))
-//        {
-//            api.enable_offboard_control();
-//        }
+        if(api.udpclient_status && ((get_time_usec() - api.lastMsg) > api.maxTimeout ))
+        {
+            api.enable_rtl_control();
+        }else if(api.udpclient_status && ((get_time_usec() - api.lastMsg) <= api.maxTimeout ))
+        {
+            api.enable_offboard_control();
+        }
         //mavlink_local_position_ned_t pos = api.current_messages.local_position_ned;
         //printf("%i CURRENT POSITION XYZ = [ % .4f , % .4f , % .4f ] \n", i++, pos.x, pos.y, pos.z);
         usleep(100000);

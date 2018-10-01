@@ -332,7 +332,9 @@ read_messages()
 					//printf("MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED\n");
 					mavlink_msg_position_target_local_ned_decode(&message, &(current_messages.position_target_local_ned));
 					current_messages.time_stamps.position_target_local_ned = get_time_usec();
+                    current_yaw = current_messages.position_target_local_ned.yaw;
 					this_timestamps.position_target_local_ned = current_messages.time_stamps.position_target_local_ned;
+                    printf("Local Current yaw: %f\n", current_yaw);
 					break;
 				}
 
@@ -343,7 +345,7 @@ read_messages()
 					current_messages.time_stamps.position_target_global_int = get_time_usec();
                     current_yaw = current_messages.position_target_global_int.yaw;
 					this_timestamps.position_target_global_int = current_messages.time_stamps.position_target_global_int;
-                    printf("Current yaw: %f", current_yaw);
+                    printf("Current yaw: %f\n", current_yaw);
 					break;
 				}
 
@@ -428,16 +430,18 @@ rw_udp_messages()
     memset(buf, '\0', BUFLEN);
 
     //try to receive some data, this is a blocking call
-    while((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1)
+    while(!time_to_exit && ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) <= 0))
     {
         //printf("recvfrom() failed with error code ");
         //exit(EXIT_FAILURE);
-        //return;
+        return;
     }
     if(recv_len > 0)
     {
         udpclient_status = true;
         lastMsg = get_time_usec();
+    } else {
+        return;
     }
 
     input_cmd = stoi(string(buf));
@@ -484,7 +488,7 @@ rw_udp_messages()
     if (sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen) == -1)
     {
         printf("sendto() failed with error code \n");
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
         //return;
     }
 
@@ -1031,7 +1035,7 @@ udpclient_thread()
 
     slen = sizeof si_other;
     //keep listening for data
-    while ( 1 )
+    while ( !time_to_exit )
     {
         //printf("Waiting for data...");
         //fflush(stdout);
